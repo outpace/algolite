@@ -1,7 +1,7 @@
-const si = require("search-index");
-const path = require("path");
-const fs = require("fs");
-const level = require("level");
+import si from "search-index";
+import path from "path";
+import fs from "fs";
+import level from "level";
 
 const indexes = {};
 
