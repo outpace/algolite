@@ -1,9 +1,10 @@
-const express = require("express");
-const querystring = require("querystring");
-const parseAlgoliaSQL = require("./src/parseAlgoliaSQL");
-const { getIndex, existIndex } = require("./src/indexes");
+import express from "express";
+import querystring from "querystring";
+import { v4 } from "uuid";
 
-const { v4 } = require("uuid");
+import parseAlgoliaSQL from "./src/parseAlgoliaSQL";
+import { getIndex, existIndex } from "./src/indexes";
+
 
 const createServer = (options) => {
   const path = options.path || process.cwd();

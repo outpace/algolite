@@ -3,9 +3,11 @@ import path from "path";
 import fs from "fs";
 import level from "level";
 
-const indexes = {};
+type SearchIndexT = ReturnType<typeof si>;
 
-module.exports.getIndex = (indexName, storePath) => {
+const indexes: {[indexName: string]: SearchIndexT } = {};
+
+module.exports.getIndex = (indexName: string, storePath: string): ReturnType<typeof si> => {
   const index = indexes[indexName];
   const basePath = path.join(storePath, ".algolite");
   if (!fs.existsSync(basePath)) {
@@ -21,7 +23,7 @@ module.exports.getIndex = (indexName, storePath) => {
   return indexes[indexName];
 };
 
-module.exports.existIndex = (indexName, storePath) => {
+module.exports.existIndex = (indexName: string, storePath: string): boolean => {
   const basePath = path.join(storePath, ".algolite", indexName);
 
   return fs.existsSync(basePath);
