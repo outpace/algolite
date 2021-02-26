@@ -28,15 +28,16 @@ const createServer = (options: { path?: string }) => {
     }
 
     if (filters) {
-      searchExp.push(parseAlgoliaSQL(db, filters));
+      searchExp.push(parseAlgoliaSQL(filters));
     }
 
-    const { RESULT: result } = await db.QUERY(...searchExp);
+    const { RESULT: result } = await db.QUERY(searchExp);
 
-    // this is going to be an AlgoliaHitType
-    const hits = result.map((item) => {
-      const { obj } = item;
+    // this is going to be return an array of AlgoliaHitType
+    const hits = [...result].map((obj) => {
+      // @ts-ignore we really do want it under objectID for algolia purposes
       obj.objectID = obj._id;
+      // @ts-ignore and indeed we really do want this key gone
       delete obj._id;
       return obj;
     });
@@ -132,7 +133,7 @@ const createServer = (options: { path?: string }) => {
 
     const searchExp = [];
     if (facetFilters) {
-      searchExp.push(parseAlgoliaSQL(db, facetFilters));
+      searchExp.push(parseAlgoliaSQL(facetFilters));
     }
 
     if (searchExp.length === 0) {
@@ -143,9 +144,9 @@ const createServer = (options: { path?: string }) => {
       });
     }
 
-    const { RESULT } = await db.QUERY(...searchExp);
-    const _ = RESULT.map(x => x);
-    const ids = RESULT.map((obj): string => obj._id);
+    const { RESULT: result } = await db.QUERY(searchExp);
+
+    const ids = [...result].map((obj): string => obj._id);
     await db.INDEX.DELETE(ids);
 
     return res.status(201).json({
@@ -165,7 +166,7 @@ const createServer = (options: { path?: string }) => {
 
     // get the index, then delete everything in it
     const result = await db.INDEX.GET("");
-    const ids = result.map((obj) => obj._id);
+    const ids = [...result].map((obj) => obj._id);
     await db.INDEX.DELETE(ids);
 
     return res.status(200).json({

@@ -5,6 +5,8 @@ import leveldown from 'leveldown';
 import levelup from "levelup";
 
 type SearchIndexT = ReturnType<typeof si>;
+type ThenArg<T> = T extends PromiseLike<infer U> ? U : T
+export type Token = Parameters<ThenArg<SearchIndexT>['MIN']>[0];
 
 const indexes: { [indexName: string]: SearchIndexT } = {};
 

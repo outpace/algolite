@@ -1,3 +1,5 @@
+import { Token } from './indexes';
+
 const parser = require("../algoliaDSLParser");
 
 interface RuleT {
@@ -8,32 +10,30 @@ interface RuleT {
   right: RuleT;
 }
 
-type DbT = {
-  OR: any;
-  AND: any;
-};
+type SearchExpressionT = string | { OR: [SearchExpressionT, SearchExpressionT] } | { AND: [SearchExpressionT, SearchExpressionT] };
 
-const buildSearchExpression = (rule: RuleT, db: DbT) => {
-  const { OR, AND } = db;
+const buildSearchExpression = (rule: RuleT): Token => {
   const { token, key, value, left, right } = rule;
 
   if (token === "MATCH") {
     return `${key}:${value.value}`;
   } else if (token === "OR") {
-    const leftExpression = buildSearchExpression(left, db);
-    const rightExpression = buildSearchExpression(right, db);
+    const leftExpression = buildSearchExpression(left);
+    const rightExpression = buildSearchExpression(right);
 
-    return OR(leftExpression, rightExpression);
+    return { OR: [leftExpression, rightExpression]};
   } else if (token === "AND") {
-    const leftExpression = buildSearchExpression(left, db);
-    const rightExpression = buildSearchExpression(right, db);
+    const leftExpression = buildSearchExpression(left);
+    const rightExpression = buildSearchExpression(right);
 
-    return AND(leftExpression, rightExpression);
+    return { AND: [leftExpression, rightExpression]};
   }
+
+  return '';
 };
 
-export default (db, sql: string | string[]) => {
+export default (sql: string | string[]) => {
   const ast = parser.parse(sql);
 
-  return buildSearchExpression(ast, db);
+  return buildSearchExpression(ast);
 };
