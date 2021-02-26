@@ -5,21 +5,20 @@ import { v4 } from "uuid";
 import parseAlgoliaSQL from "./src/parseAlgoliaSQL";
 import { getIndex, existIndex } from "./src/indexes";
 
-
-const createServer = (options) => {
+const createServer = (options: { path?: string }) => {
   const path = options.path || process.cwd();
   const app = express();
 
   app.use(express.json());
 
-  app.post("/1/indexes/:indexName/query", async (req, res) => {
+  app.post("/1/indexes/:indexName/query", async (request, response) => {
     const {
       body,
       params: { indexName },
-    } = req;
+    } = request;
     const { params: queryParams } = body;
 
-    const db = getIndex(indexName, path);
+    const db = await getIndex(indexName, path);
 
     const { query, filters } = querystring.parse(queryParams);
 
@@ -32,8 +31,9 @@ const createServer = (options) => {
       searchExp.push(parseAlgoliaSQL(db, filters));
     }
 
-    const result = await db.SEARCH(...searchExp);
+    const { RESULT: result } = await db.QUERY(...searchExp);
 
+    // this is going to be an AlgoliaHitType
     const hits = result.map((item) => {
       const { obj } = item;
       obj.objectID = obj._id;
@@ -41,7 +41,7 @@ const createServer = (options) => {
       return obj;
     });
 
-    return res.json({
+    return response.json({
       hits,
       params: queryParams || "",
       query: query || "",
@@ -55,7 +55,7 @@ const createServer = (options) => {
     } = req;
     const _id = v4();
 
-    const db = getIndex(indexName, path);
+    const db = await getIndex(indexName, path);
     await db.PUT([
       {
         _id,
@@ -77,7 +77,7 @@ const createServer = (options) => {
     } = req;
     const { objectID } = req.params;
 
-    const db = getIndex(indexName, path);
+    const db = await getIndex(indexName, path);
     try {
       await db.DELETE([objectID]);
     } catch (error) {
@@ -103,7 +103,7 @@ const createServer = (options) => {
   app.delete("/1/indexes/:indexName/:objectID", async (req, res) => {
     const { objectID, indexName } = req.params;
 
-    const db = getIndex(indexName, path);
+    const db = await getIndex(indexName, path);
     try {
       await db.DELETE([objectID]);
     } catch (error) {
@@ -128,7 +128,7 @@ const createServer = (options) => {
 
     const { facetFilters } = querystring.parse(queryParams);
 
-    const db = getIndex(indexName, path);
+    const db = await getIndex(indexName, path);
 
     const searchExp = [];
     if (facetFilters) {
@@ -143,8 +143,9 @@ const createServer = (options) => {
       });
     }
 
-    const result = await db.SEARCH(...searchExp);
-    const ids = result.map((obj) => obj._id);
+    const { RESULT } = await db.QUERY(...searchExp);
+    const _ = RESULT.map(x => x);
+    const ids = RESULT.map((obj): string => obj._id);
     await db.INDEX.DELETE(ids);
 
     return res.status(201).json({
@@ -160,7 +161,9 @@ const createServer = (options) => {
       return res.status(400).end();
     }
 
-    const db = getIndex(indexName, path);
+    const db = await getIndex(indexName, path);
+
+    // get the index, then delete everything in it
     const result = await db.INDEX.GET("");
     const ids = result.map((obj) => obj._id);
     await db.INDEX.DELETE(ids);
