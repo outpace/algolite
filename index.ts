@@ -2,7 +2,7 @@ import express from "express";
 import querystring from "querystring";
 import { v4 } from "uuid";
 
-import parseAlgoliaSQL from "./src/parseAlgoliaSQL";
+import { parseAlgoliaSQL } from "./src/parseAlgoliaSQL";
 import { getIndex, existIndex, Token } from "./src/indexes";
 
 const createServer = (options: { path?: string }) => {
@@ -22,17 +22,34 @@ const createServer = (options: { path?: string }) => {
 
     const { query, filters } = querystring.parse(queryParams);
 
-    const searchExp: Token = { AND: [] };
+    let searchAND: NonNullable<Token>[] = [];
+    let search: Token;
 
     if (query !== undefined) {
-      searchExp.AND.push(!query ? { FIELD: "all" } : query);
+      searchAND.push(query ? query : { FIELD: "_all" });
     }
 
     if (filters) {
-      searchExp.AND.push(parseAlgoliaSQL(filters) || "");
+      const parsedFilters = parseAlgoliaSQL(filters);
+
+      if (parsedFilters) {
+        searchAND.push(parsedFilters);
+      }
     }
 
-    const { RESULT: result } = await db.QUERY(searchExp);
+    switch (searchAND.length) {
+      case 0:
+        search = { FIELD: "_all" };
+        break;
+      case 1:
+        search = searchAND[0];
+        break;
+      case 2:
+        search = { AND: searchAND };
+        break;
+    }
+
+    const { RESULT: result } = await db.QUERY(search, { DOCUMENTS: true });
 
     // this is going to be return an array of AlgoliaHitType
     const hits = [...result].map((obj) => {

@@ -247,8 +247,10 @@ const buildSearchExpression = (rule: RuleT): Token => {
   }
 };
 
-export default (sql: string | string[]): Token => {
+const parseAlgoliaSQL = (sql: string | string[]): Token => {
   const ast = parser.parse(sql);
 
   return buildSearchExpression(ast);
 };
+
+export { parseAlgoliaSQL };
