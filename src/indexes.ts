@@ -1,12 +1,10 @@
 import si from "search-index";
 import path from "path";
 import fs from "fs";
-import leveldown from 'leveldown';
-import levelup from "levelup";
 
 type SearchIndexT = ReturnType<typeof si>;
-type ThenArg<T> = T extends PromiseLike<infer U> ? U : T
-export type Token = Parameters<ThenArg<SearchIndexT>['MIN']>[0];
+type ThenArg<T> = T extends PromiseLike<infer U> ? U : T;
+export type Token = Parameters<ThenArg<SearchIndexT>["MIN"]>[0];
 
 const indexes: { [indexName: string]: SearchIndexT } = {};
 
@@ -23,9 +21,6 @@ export const getIndex = (
 
   if (!index) {
     const indexPath = path.join(basePath, indexName);
-    // const ldown = leveldown(indexPath);
-    // const lup = levelup(ldown, { valueEncoding: "json" });
-
     indexes[indexName] = si({ db: indexPath });
   }
 

@@ -25,7 +25,7 @@ const createServer = (options: { path?: string }) => {
     const searchExp: Token = { AND: [] };
 
     if (query !== undefined) {
-      searchExp.AND.push(!query ? "*" : query);
+      searchExp.AND.push(!query ? { FIELD: "all" } : query);
     }
 
     if (filters) {
@@ -61,6 +61,7 @@ const createServer = (options: { path?: string }) => {
     await db.PUT([
       {
         _id,
+        _all: "all",
         ...body,
       },
     ]);
@@ -91,8 +92,10 @@ const createServer = (options: { path?: string }) => {
     await db.PUT([
       {
         _id: objectID,
+        _all: "all",
         ...body,
       },
+      { storeVectors: true },
     ]);
 
     return res.status(201).json({
