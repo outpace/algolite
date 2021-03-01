@@ -7,7 +7,7 @@ type Value = string | number | boolean | null;
 interface RuleT {
   token: any;
   key: any;
-  value: RuleT | Value;
+  value: RuleT;
   left: RuleT;
   right: RuleT;
 }
@@ -94,90 +94,122 @@ const buildEquals = (key: string, value: RuleT | Value): Token => {
   return buildMatch(key, value);
 };
 
-const buildGt = (key: string, value: RuleT | Value): Token => {
-  if (!isValue(value)) {
-    throw new Error("Expected right side of > to be a simple value");
-  }
-
-  if (value === null) {
+const buildGt = (key: string, value: RuleT): Token => {
+  if (value === null || value.value === null) {
     return undefined;
-  }
-
-  if (typeof value === "boolean") {
-    // this feels a bit nonsensical but the API supports it...
-    value = value.toString();
-  } else if (typeof value === "number") {
-    // all we have is GTE and these are whole numbers so we have to increment for this to work
-    value = value + 1;
   }
 
   // GTE will be wrong when the value is a string but string comparisons in this way
   // are weird in the first place and there's no good way in js to get the next lexicographical
   // string.
 
+  if (typeof value.value === "number") {
+    // all we have is GTE and these are whole numbers so we have to increment for this to work
+
+    // @ts-ignore LTE is not actually required
+    return { FIELD: key, VALUE: { GTE: value.value + 1 } };
+  }
+
+  const expression = buildSearchExpression(value);
+
+  if (!isValue(expression)) {
+    throw new Error("Expected right side of > to be a simple value");
+  }
+
   // @ts-ignore LTE is not actually required
-  return { FIELD: key, VALUE: { GTE: value } };
+  return { FIELD: key, VALUE: { GTE: expression } };
 };
 
-const buildGte = (key: string, value: RuleT | Value): Token => {
-  if (!isValue(value)) {
+const buildGte = (key: string, value: RuleT): Token => {
+  if (value === null || value.value === null) {
+    return undefined;
+  }
+
+  // GTE will be wrong when the value is a string but string comparisons in this way
+  // are weird in the first place and there's no good way in js to get the previous lexicographical
+  // string.
+
+  const expression = buildSearchExpression(value);
+
+  if (!isValue(expression)) {
     throw new Error("Expected right side of >= to be a simple value");
   }
 
-  if (value === null) {
-    return undefined;
-  }
-
-  if (typeof value === "boolean") {
-    // this feels a bit nonsensical but the API supports it...
-    value = value.toString();
-  }
-
   // @ts-ignore LTE is not actually required
-  return { FIELD: key, VALUE: { GTE: value } };
+  return { FIELD: key, VALUE: { GTE: expression } };
 };
 
-const buildLt = (key: string, value: RuleT | Value): Token => {
-  if (!isValue(value)) {
-    throw new Error("Expected right side of < to be a simple value");
-  }
-
-  if (value === null) {
+const buildLt = (key: string, value: RuleT): Token => {
+  if (value === null || value.value === null) {
     return undefined;
   }
 
-  if (typeof value === "boolean") {
-    // this feels a bit nonsensical but the API supports it...
-    value = value.toString();
-  } else if (typeof value === "number") {
-    // all we have is LTE and these are whole numbers so we have to decrement for this to work
-    value = value - 1;
+  const expression = buildSearchExpression(value);
+
+  if (!isValue(expression)) {
+    throw new Error("Expected right side of < to be a simple value");
   }
 
   // LTE will be wrong when the value is a string but string comparisons in this way
   // are weird in the first place and there's no good way in js to get the previous lexicographical
   // string.
 
-  // @ts-ignore GTE is not actually required
-  return { FIELD: key, VALUE: { LTE: value } };
-};
+  if (typeof value.value === "number") {
+    // all we have is LTE and these are whole numbers so we have to decrement for this to work
 
-const buildLte = (key: string, value: RuleT | Value): Token => {
-  if (!isValue(value)) {
-    throw new Error("Expected right side of <= to be a simple value");
+    // @ts-ignore GTE is not actually required
+    return { FIELD: key, VALUE: { LTE: value.value - 1 } };
   }
 
+  // @ts-ignore GTE is not actually required
+  return { FIELD: key, VALUE: { LTE: expression } };
+};
+
+const buildLte = (key: string, value: RuleT): Token => {
   if (value === null) {
     return undefined;
   }
 
-  if (typeof value === "boolean") {
-    // this feels a bit nonsensical but the API supports it...
-    value = value.toString();
+  const expression = buildSearchExpression(value);
+
+  if (!isValue(expression)) {
+    throw new Error("Expected right side of <= to be a simple value");
   }
 
   // @ts-ignore GTE is not actually required
-  return { FIELD: key, VALUE: { LTE: value } };
+  return { FIELD: key, VALUE: { LTE: expression } };
+};
+
+const buildString = (value: RuleT | Value): string => {
+  if (typeof value !== "string") {
+    throw new Error("Expected value to be a string");
+  }
+
+  return value;
+};
+
+const buildNumber = (value: RuleT | Value): string => {
+  if (typeof value !== "number") {
+    throw new Error("Expected value to be a number");
+  }
+
+  return value.toString();
+};
+
+const buildBoolean = (value: RuleT | Value): string => {
+  if (typeof value !== "boolean") {
+    throw new Error("Expected value to be a boolean");
+  }
+
+  return value.toString();
+};
+
+const buildNull = (value: RuleT | Value): string => {
+  if (value !== null) {
+    throw new Error("Expected value to be null");
+  }
+
+  return "null";
 };
 
 const buildSearchExpression = (rule: RuleT): Token => {
@@ -202,6 +234,14 @@ const buildSearchExpression = (rule: RuleT): Token => {
       return buildLt(key, value);
     case "LTE":
       return buildLte(key, value);
+    case "STRING":
+      return buildString(value);
+    case "NUMBER":
+      return buildNumber(value);
+    case "BOOLEAN":
+      return buildBoolean(value);
+    case "NULL":
+      return buildNull(value);
     default:
       return undefined;
   }

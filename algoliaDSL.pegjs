@@ -44,7 +44,7 @@ ExpressionMatch
       value: value
     }
   }
-  
+
 ExpressionEquals
   = key:Word Space* ("=") Space* value:Value {
     return {
@@ -107,7 +107,7 @@ Value "value"
 
 String "string"
   = '"' word:Special '"' { return { token: 'STRING', value: word  } }
-  / "'" word:Special '"' { return { token: 'STRING', value: word  } }
+  / "'" word:Special "'" { return { token: 'STRING', value: word  } }
   / word:Special { return { token: 'STRING', value: word  } }
 
 Number "number"
@@ -131,14 +131,12 @@ Null "null"
     }
   }
 
-
-
 Word "word"
   = w:Letter+ { return  w.join('') }
 
 Special "special"
   = w:[^ ()"']+ { return w.join('') }
-  
+
 Letter
   = [.a-zA-Z0-9_]
 
