@@ -2,11 +2,7 @@ import express from "express";
 import querystring from "querystring";
 import { v4 } from "uuid";
 
-import {
-  parseSearch,
-  parseAlgoliaSQL,
-  parseFilters,
-} from "./src/parseAlgoliaSQL";
+import { parseSearch, parseFilters } from "./src/parseAlgoliaQueries";
 import { getIndex, existIndex, Token } from "./src/indexes";
 
 const createServer = (options: { path?: string }) => {
