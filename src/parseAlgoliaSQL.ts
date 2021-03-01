@@ -253,4 +253,67 @@ const parseAlgoliaSQL = (sql: string | string[]): Token => {
   return buildSearchExpression(ast);
 };
 
-export { parseAlgoliaSQL };
+const parseFilters = (
+  filters: string | string[] | undefined
+): Token | undefined => {
+  if (filters === undefined) {
+    return undefined;
+  }
+
+  if (Array.isArray(filters)) {
+    filters = filters.map((f) => `(${f})`).join(" OR ");
+  }
+
+  return parseAlgoliaSQL(filters);
+};
+
+const parseQuery = (query: string | string[] | undefined): Token => {
+  if (query === undefined) {
+    return undefined;
+  }
+
+  if (Array.isArray(query)) {
+    query = query.join(" ");
+  }
+
+  return query ? query : { FIELD: "_all" };
+};
+
+const parseSearch = (search: {
+  query?: string | string[] | undefined;
+  filters?: string | string[] | undefined;
+}): Token => {
+  const { query, filters } = search;
+
+  let searches: NonNullable<Token>[] = [];
+
+  const parsedQuery = parseQuery(query);
+
+  if (parsedQuery !== undefined) {
+    searches.push(parsedQuery);
+  }
+
+  const parsedFilters = parseFilters(filters);
+
+  if (parsedFilters !== undefined) {
+    searches.push(parsedFilters);
+  }
+
+  let parsedSearch: Token;
+
+  switch (searches.length) {
+    case 0:
+      parsedSearch = { FIELD: "_all" };
+      break;
+    case 1:
+      parsedSearch = searches[0];
+      break;
+    case 2:
+      parsedSearch = { AND: searches };
+      break;
+  }
+
+  return parsedSearch;
+};
+
+export { parseAlgoliaSQL, parseQuery, parseFilters, parseSearch };

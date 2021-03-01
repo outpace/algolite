@@ -2,7 +2,11 @@ import express from "express";
 import querystring from "querystring";
 import { v4 } from "uuid";
 
-import { parseAlgoliaSQL } from "./src/parseAlgoliaSQL";
+import {
+  parseSearch,
+  parseAlgoliaSQL,
+  parseFilters,
+} from "./src/parseAlgoliaSQL";
 import { getIndex, existIndex, Token } from "./src/indexes";
 
 const createServer = (options: { path?: string }) => {
@@ -22,32 +26,7 @@ const createServer = (options: { path?: string }) => {
 
     const { query, filters } = querystring.parse(queryParams);
 
-    let searchAND: NonNullable<Token>[] = [];
-    let search: Token;
-
-    if (query !== undefined) {
-      searchAND.push(query ? query : { FIELD: "_all" });
-    }
-
-    if (filters) {
-      const parsedFilters = parseAlgoliaSQL(filters);
-
-      if (parsedFilters) {
-        searchAND.push(parsedFilters);
-      }
-    }
-
-    switch (searchAND.length) {
-      case 0:
-        search = { FIELD: "_all" };
-        break;
-      case 1:
-        search = searchAND[0];
-        break;
-      case 2:
-        search = { AND: searchAND };
-        break;
-    }
+    const search = parseSearch({ query, filters });
 
     const { RESULT: result } = await db.QUERY(search, { DOCUMENTS: true });
 
@@ -152,12 +131,9 @@ const createServer = (options: { path?: string }) => {
 
     const db = await getIndex(indexName, path);
 
-    const searchExp: Token = { AND: [] };
-    if (facetFilters) {
-      searchExp.AND.push(parseAlgoliaSQL(facetFilters) || "");
-    }
+    const search = parseFilters(facetFilters);
 
-    if (searchExp.AND.length === 0) {
+    if (search === undefined) {
       return res.status(400).json({
         message:
           "DeleteByQuery endpoint only supports tagFilters, facetFilters, numericFilters and geoQuery condition",
@@ -165,7 +141,7 @@ const createServer = (options: { path?: string }) => {
       });
     }
 
-    const { RESULT: result } = await db.QUERY(searchExp);
+    const { RESULT: result } = await db.QUERY(search);
 
     const ids = [...result].map((obj): string => obj._id);
     await db.INDEX.DELETE(ids);
