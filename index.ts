@@ -3,7 +3,7 @@ import querystring from "querystring";
 import { v4 } from "uuid";
 
 import parseAlgoliaSQL from "./src/parseAlgoliaSQL";
-import { getIndex, existIndex } from "./src/indexes";
+import { getIndex, existIndex, Token } from "./src/indexes";
 
 const createServer = (options: { path?: string }) => {
   const path = options.path || process.cwd();
@@ -22,13 +22,14 @@ const createServer = (options: { path?: string }) => {
 
     const { query, filters } = querystring.parse(queryParams);
 
-    const searchExp = [];
+    const searchExp: Token = { AND: [] };
+
     if (query !== undefined) {
-      searchExp.push(!query ? "*" : query);
+      searchExp.AND.push(!query ? "*" : query);
     }
 
     if (filters) {
-      searchExp.push(parseAlgoliaSQL(filters));
+      searchExp.AND.push(parseAlgoliaSQL(filters) || "");
     }
 
     const { RESULT: result } = await db.QUERY(searchExp);
@@ -131,12 +132,12 @@ const createServer = (options: { path?: string }) => {
 
     const db = await getIndex(indexName, path);
 
-    const searchExp = [];
+    const searchExp: Token = { AND: [] };
     if (facetFilters) {
-      searchExp.push(parseAlgoliaSQL(facetFilters));
+      searchExp.AND.push(parseAlgoliaSQL(facetFilters) || "");
     }
 
-    if (searchExp.length === 0) {
+    if (searchExp.AND.length === 0) {
       return res.status(400).json({
         message:
           "DeleteByQuery endpoint only supports tagFilters, facetFilters, numericFilters and geoQuery condition",

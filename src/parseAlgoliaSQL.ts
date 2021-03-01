@@ -1,4 +1,4 @@
-import { Token } from './indexes';
+import { Token } from "./indexes";
 
 const parser = require("../algoliaDSLParser");
 
@@ -10,7 +10,13 @@ interface RuleT {
   right: RuleT;
 }
 
-type SearchExpressionT = string | { OR: [SearchExpressionT, SearchExpressionT] } | { AND: [SearchExpressionT, SearchExpressionT] };
+const isNotUndefined = <T>(value: T | undefined): value is T => {
+  if (value === undefined) {
+    return false;
+  }
+
+  return true;
+};
 
 const buildSearchExpression = (rule: RuleT): Token => {
   const { token, key, value, left, right } = rule;
@@ -18,21 +24,33 @@ const buildSearchExpression = (rule: RuleT): Token => {
   if (token === "MATCH") {
     return `${key}:${value.value}`;
   } else if (token === "OR") {
-    const leftExpression = buildSearchExpression(left);
-    const rightExpression = buildSearchExpression(right);
+    const expressions = [
+      buildSearchExpression(left),
+      buildSearchExpression(right),
+    ].filter(isNotUndefined);
 
-    return { OR: [leftExpression, rightExpression]};
+    if (expressions.length === 0) {
+      return undefined;
+    }
+
+    return { OR: expressions };
   } else if (token === "AND") {
-    const leftExpression = buildSearchExpression(left);
-    const rightExpression = buildSearchExpression(right);
+    const expressions = [
+      buildSearchExpression(left),
+      buildSearchExpression(right),
+    ].filter(isNotUndefined);
 
-    return { AND: [leftExpression, rightExpression]};
+    if (expressions.length === 0) {
+      return undefined;
+    }
+
+    return { AND: expressions };
   }
 
-  return '';
+  return undefined;
 };
 
-export default (sql: string | string[]) => {
+export default (sql: string | string[]): Token => {
   const ast = parser.parse(sql);
 
   return buildSearchExpression(ast);
