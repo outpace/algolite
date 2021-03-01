@@ -93,6 +93,7 @@ const buildNot = (value: any): Token => {
 const buildEquals = (key: string, value: RuleT | Value): Token => {
   return buildMatch(key, value);
 };
+
 const buildGt = (key: string, value: RuleT | Value): Token => {
   if (!isValue(value)) {
     throw new Error("Expected right side of > to be a simple value");
@@ -135,6 +136,50 @@ const buildGte = (key: string, value: RuleT | Value): Token => {
   // @ts-ignore LTE is not actually required
   return { FIELD: key, VALUE: { GTE: value } };
 };
+
+const buildLt = (key: string, value: RuleT | Value): Token => {
+  if (!isValue(value)) {
+    throw new Error("Expected right side of < to be a simple value");
+  }
+
+  if (value === null) {
+    return undefined;
+  }
+
+  if (typeof value === "boolean") {
+    // this feels a bit nonsensical but the API supports it...
+    value = value.toString();
+  } else if (typeof value === "number") {
+    // all we have is LTE and these are whole numbers so we have to decrement for this to work
+    value = value - 1;
+  }
+
+  // LTE will be wrong when the value is a string but string comparisons in this way
+  // are weird in the first place and there's no good way in js to get the previous lexicographical
+  // string.
+
+  // @ts-ignore GTE is not actually required
+  return { FIELD: key, VALUE: { LTE: value } };
+};
+
+const buildLte = (key: string, value: RuleT | Value): Token => {
+  if (!isValue(value)) {
+    throw new Error("Expected right side of <= to be a simple value");
+  }
+
+  if (value === null) {
+    return undefined;
+  }
+
+  if (typeof value === "boolean") {
+    // this feels a bit nonsensical but the API supports it...
+    value = value.toString();
+  }
+
+  // @ts-ignore GTE is not actually required
+  return { FIELD: key, VALUE: { LTE: value } };
+};
+
 const buildSearchExpression = (rule: RuleT): Token => {
   const { token, key, value, left, right } = rule;
 
@@ -153,6 +198,10 @@ const buildSearchExpression = (rule: RuleT): Token => {
       return buildGt(key, value);
     case "GTE":
       return buildGte(key, value);
+    case "LT":
+      return buildLt(key, value);
+    case "LTE":
+      return buildLte(key, value);
     default:
       return undefined;
   }
