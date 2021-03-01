@@ -35,17 +35,19 @@ const isValue = (value: unknown): value is Value => {
   return false;
 };
 
-const buildMatch = (key: string, value: RuleT | Value): Token => {
-  if (!isValue(value)) {
-    throw new Error("Expected right side of match to be a simple value");
-  }
+const buildAnd = (left: RuleT, right: RuleT): Token => {
+  const expressions = [left, right]
+    .map(buildSearchExpression)
+    .filter(isNotUndefined);
 
-  if (value === null) {
-    return undefined;
-  } else if (typeof value !== "string") {
-    value = value.toString();
+  switch (expressions.length) {
+    case 0:
+      return undefined;
+    case 1:
+      return expressions[0];
+    default:
+      return { AND: expressions };
   }
-  return { FIELD: key, VALUE: value };
 };
 
 const buildOr = (left: RuleT, right: RuleT): Token => {
@@ -64,21 +66,6 @@ const buildOr = (left: RuleT, right: RuleT): Token => {
   }
 };
 
-const buildAnd = (left: RuleT, right: RuleT): Token => {
-  const expressions = [left, right]
-    .map(buildSearchExpression)
-    .filter(isNotUndefined);
-
-  switch (expressions.length) {
-    case 0:
-      return undefined;
-    case 1:
-      return expressions[0];
-    default:
-      return { AND: expressions };
-  }
-};
-
 const buildNot = (value: any): Token => {
   const expression = buildSearchExpression(value);
 
@@ -88,6 +75,19 @@ const buildNot = (value: any): Token => {
 
   // @ts-ignore you have to have a NOT around the EXCLUDE/INCLUDE but the types don't think so
   return { NOT: { EXCLUDE: expression, INCLUDE: { FIELD: "_all" } } };
+};
+
+const buildMatch = (key: string, value: RuleT | Value): Token => {
+  if (!isValue(value)) {
+    throw new Error("Expected right side of match to be a simple value");
+  }
+
+  if (value === null) {
+    return undefined;
+  } else if (typeof value !== "string") {
+    value = value.toString();
+  }
+  return { FIELD: key, VALUE: value };
 };
 
 const buildEquals = (key: string, value: RuleT | Value): Token => {
@@ -184,14 +184,14 @@ const buildSearchExpression = (rule: RuleT): Token => {
   const { token, key, value, left, right } = rule;
 
   switch (token) {
-    case "MATCH":
-      return buildMatch(key, value);
-    case "OR":
-      return buildOr(left, right);
     case "AND":
       return buildAnd(left, right);
+    case "OR":
+      return buildOr(left, right);
     case "NOT":
       return buildNot(value);
+    case "MATCH":
+      return buildMatch(key, value);
     case "EQUALS":
       return buildEquals(key, value);
     case "GT":
