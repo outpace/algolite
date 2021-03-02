@@ -84,7 +84,7 @@ ExpressionLt
 ExpressionLte
   = key:Word Space* "<=" Space* value:Value {
     return {
-      token: 'GT',
+      token: 'LTE',
       key: key,
       value: value
     }
@@ -92,18 +92,18 @@ ExpressionLte
 
 Expression
   = ExpressionMatch
-  / ExpressionEquals
-  / ExpressionGt
   / ExpressionGte
-  / ExpressionLt
+  / ExpressionGt
   / ExpressionLte
+  / ExpressionLt
+  / ExpressionEquals
   / "(" statement:Statement ")" { return statement }
 
 Value "value"
-  = String
-  / Number
+  = Number
   / Boolean
   / Null
+  / String
 
 String "string"
   = '"' word:Special '"' { return { token: 'STRING', value: word  } }

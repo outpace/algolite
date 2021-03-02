@@ -103,4 +103,100 @@ describe("parseAlgoliaSQL", () => {
       });
     });
   });
+
+  describe("GT", () => {
+    it("generates a token for > string, boolean, and null queries", () => {
+      expect(parseAlgoliaSQL("foo > bar")).toEqual({
+        FIELD: "foo",
+        VALUE: { GTE: "bar" },
+      });
+      expect(parseAlgoliaSQL("foo > false")).toEqual({
+        FIELD: "foo",
+        VALUE: { GTE: "false" },
+      });
+      expect(parseAlgoliaSQL("foo > null")).toEqual({
+        FIELD: "foo",
+        VALUE: { GTE: "null" },
+      });
+    });
+
+    it("generates a token for > number queries", () => {
+      expect(parseAlgoliaSQL("foo > 1")).toEqual({
+        FIELD: "foo",
+        VALUE: { GTE: "2" },
+      });
+    });
+  });
+
+  describe("GTE", () => {
+    it("generates a token for >= string, boolean, and null queries", () => {
+      expect(parseAlgoliaSQL("foo >= bar")).toEqual({
+        FIELD: "foo",
+        VALUE: { GTE: "bar" },
+      });
+      expect(parseAlgoliaSQL("foo >= false")).toEqual({
+        FIELD: "foo",
+        VALUE: { GTE: "false" },
+      });
+      expect(parseAlgoliaSQL("foo >= null")).toEqual({
+        FIELD: "foo",
+        VALUE: { GTE: "null" },
+      });
+    });
+
+    it("generates a token for >= number queries", () => {
+      expect(parseAlgoliaSQL("foo >= 1")).toEqual({
+        FIELD: "foo",
+        VALUE: { GTE: "1" },
+      });
+    });
+  });
+
+  describe("LT", () => {
+    it("generates a token for < string, boolean, and null queries", () => {
+      expect(parseAlgoliaSQL("foo < bar")).toEqual({
+        FIELD: "foo",
+        VALUE: { LTE: "bar" },
+      });
+      expect(parseAlgoliaSQL("foo < false")).toEqual({
+        FIELD: "foo",
+        VALUE: { LTE: "false" },
+      });
+      expect(parseAlgoliaSQL("foo < null")).toEqual({
+        FIELD: "foo",
+        VALUE: { LTE: "null" },
+      });
+    });
+
+    it("generates a token for < number queries", () => {
+      expect(parseAlgoliaSQL("foo < 2")).toEqual({
+        FIELD: "foo",
+        VALUE: { LTE: "1" },
+      });
+    });
+  });
+
+  describe("LTE", () => {
+    it("generates a token for <= string, boolean, and null queries", () => {
+      expect(parseAlgoliaSQL("foo <= bar")).toEqual({
+        FIELD: "foo",
+        VALUE: { LTE: "bar" },
+      });
+      expect(parseAlgoliaSQL("foo <= false")).toEqual({
+        FIELD: "foo",
+        VALUE: { LTE: "false" },
+      });
+      expect(parseAlgoliaSQL("foo <= null")).toEqual({
+        FIELD: "foo",
+        VALUE: { LTE: "null" },
+      });
+    });
+
+    it("generates a token for <= number queries", () => {
+      expect(parseAlgoliaSQL("foo <= 2")).toEqual({
+        FIELD: "foo",
+        VALUE: { LTE: "2" },
+      });
+    });
+  });
 });

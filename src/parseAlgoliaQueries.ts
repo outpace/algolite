@@ -4,12 +4,12 @@ const parser = require("../algoliaDSLParser");
 
 type Value = string | number | boolean | null;
 
-interface RuleT {
+interface Node {
   token: any;
   key: any;
-  value: RuleT;
-  left: RuleT;
-  right: RuleT;
+  value: Node | Value;
+  left: Node;
+  right: Node;
 }
 
 const isNotUndefined = <T>(value: T | undefined): value is T => {
@@ -35,7 +35,25 @@ const isValue = (value: unknown): value is Value => {
   return false;
 };
 
-const buildAnd = (left: RuleT, right: RuleT): Token => {
+const valueNodeToString = (node: Node): string => {
+  const value = node.value;
+
+  switch (typeof value) {
+    case "string":
+      return value;
+    case "boolean":
+    case "number":
+      return value.toString();
+    default:
+      if (value === null) {
+        return "null";
+      } else {
+        throw new Error("Unexpected node value type: " + typeof value);
+      }
+  }
+};
+
+const buildAnd = (left: Node, right: Node): Token => {
   const expressions = [left, right]
     .map(buildSearchExpression)
     .filter(isNotUndefined);
@@ -50,7 +68,7 @@ const buildAnd = (left: RuleT, right: RuleT): Token => {
   }
 };
 
-const buildOr = (left: RuleT, right: RuleT): Token => {
+const buildOr = (left: Node, right: Node): Token => {
   const expressions = [
     buildSearchExpression(left),
     buildSearchExpression(right),
@@ -77,142 +95,128 @@ const buildNot = (value: any): Token => {
   return { NOT: { EXCLUDE: expression, INCLUDE: { FIELD: "_all" } } };
 };
 
-const buildMatch = (key: string, value: RuleT): Token => {
-  const expression = buildSearchExpression(value);
-
-  if (!isValue(expression)) {
-    throw new Error(
-      `Expected right side of match to be a simple value, got: ${typeof expression}`
-    );
+const buildMatch = (key: string, value: Node | Value): Token => {
+  if (isValue(value)) {
+    throw new Error("Expected a Node and not a Value");
   }
 
-  return { FIELD: key, VALUE: expression };
+  const valueAsString = valueNodeToString(value);
+
+  return { FIELD: key, VALUE: valueAsString };
 };
 
-const buildEquals = (key: string, value: RuleT): Token => {
+const buildEquals = (key: string, value: Node | Value): Token => {
   return buildMatch(key, value);
 };
 
-const buildGt = (key: string, value: RuleT): Token => {
-  if (value === null || value.value === null) {
-    return undefined;
+const buildGt = (key: string, nodeOrValue: Node | Value): Token => {
+  if (isValue(nodeOrValue)) {
+    throw new Error("Expected a Node and not a Value");
   }
 
   // GTE will be wrong when the value is a string but string comparisons in this way
   // are weird in the first place and there's no good way in js to get the next lexicographical
   // string.
 
-  if (typeof value.value === "number") {
+  if (nodeOrValue.token === "NUMBER" && typeof nodeOrValue.value === "number") {
     // all we have is GTE and these are whole numbers so we have to increment for this to work
 
-    // @ts-ignore LTE is not actually required
-    return { FIELD: key, VALUE: { GTE: value.value + 1 } };
+    const value = (nodeOrValue.value + 1).toString();
+
+    // @ts-ignore LTE is not actually required and value is definitely a number
+    return { FIELD: key, VALUE: { GTE: value } };
   }
 
-  const expression = buildSearchExpression(value);
-
-  if (!isValue(expression)) {
-    throw new Error("Expected right side of > to be a simple value");
-  }
+  const valueAsString = valueNodeToString(nodeOrValue);
 
   // @ts-ignore LTE is not actually required
-  return { FIELD: key, VALUE: { GTE: expression } };
+  return { FIELD: key, VALUE: { GTE: valueAsString } };
 };
 
-const buildGte = (key: string, value: RuleT): Token => {
-  if (value === null || value.value === null) {
-    return undefined;
+const buildGte = (key: string, nodeOrValue: Node | Value): Token => {
+  if (isValue(nodeOrValue)) {
+    throw new Error("Expected a Node and not a Value");
   }
 
   // GTE will be wrong when the value is a string but string comparisons in this way
   // are weird in the first place and there's no good way in js to get the previous lexicographical
   // string.
 
-  const expression = buildSearchExpression(value);
-
-  if (!isValue(expression)) {
-    throw new Error("Expected right side of >= to be a simple value");
-  }
+  const valueAsString = valueNodeToString(nodeOrValue);
 
   // @ts-ignore LTE is not actually required
-  return { FIELD: key, VALUE: { GTE: expression } };
+  return { FIELD: key, VALUE: { GTE: valueAsString } };
 };
 
-const buildLt = (key: string, value: RuleT): Token => {
-  if (value === null || value.value === null) {
-    return undefined;
-  }
-
-  const expression = buildSearchExpression(value);
-
-  if (!isValue(expression)) {
-    throw new Error("Expected right side of < to be a simple value");
+const buildLt = (key: string, nodeOrValue: Node | Value): Token => {
+  if (isValue(nodeOrValue)) {
+    throw new Error("Expected a Node and not a Value");
   }
 
   // LTE will be wrong when the value is a string but string comparisons in this way
   // are weird in the first place and there's no good way in js to get the previous lexicographical
   // string.
 
-  if (typeof value.value === "number") {
+  if (nodeOrValue.token === "NUMBER" && typeof nodeOrValue.value === "number") {
     // all we have is LTE and these are whole numbers so we have to decrement for this to work
 
+    const value = (nodeOrValue.value - 1).toString();
+
     // @ts-ignore GTE is not actually required
-    return { FIELD: key, VALUE: { LTE: value.value - 1 } };
+    return { FIELD: key, VALUE: { LTE: value } };
   }
+
+  const value = valueNodeToString(nodeOrValue);
 
   // @ts-ignore GTE is not actually required
-  return { FIELD: key, VALUE: { LTE: expression } };
+  return { FIELD: key, VALUE: { LTE: value } };
 };
 
-const buildLte = (key: string, value: RuleT): Token => {
-  if (value === null) {
-    return undefined;
+const buildLte = (key: string, nodeOrValue: Node | Value): Token => {
+  if (isValue(nodeOrValue)) {
+    throw new Error("Expected a Node and not a Value");
   }
 
-  const expression = buildSearchExpression(value);
-
-  if (!isValue(expression)) {
-    throw new Error("Expected right side of <= to be a simple value");
-  }
+  const value = valueNodeToString(nodeOrValue);
 
   // @ts-ignore GTE is not actually required
-  return { FIELD: key, VALUE: { LTE: expression } };
+  return { FIELD: key, VALUE: { LTE: value } };
 };
 
-const buildString = (value: RuleT | Value): string => {
-  if (typeof value !== "string") {
+const buildString = (nodeOrValue: Node | Value): string => {
+  if (typeof nodeOrValue === "string") {
+    return nodeOrValue;
+  } else {
     throw new Error("Expected value to be a string");
   }
-
-  return value;
 };
 
-const buildNumber = (value: RuleT | Value): string => {
-  if (typeof value !== "number") {
+const buildNumber = (nodeOrValue: Node | Value): string => {
+  if (typeof nodeOrValue === "number") {
+    return nodeOrValue.toString();
+  } else {
     throw new Error("Expected value to be a number");
   }
-
-  return value.toString();
 };
 
-const buildBoolean = (value: RuleT | Value): string => {
-  if (typeof value !== "boolean") {
+const buildBoolean = (nodeOrValue: Node | Value): string => {
+  if (typeof nodeOrValue === "boolean") {
+    return nodeOrValue.toString();
+  } else {
     throw new Error("Expected value to be a boolean");
   }
-
-  return value.toString();
 };
 
-const buildNull = (value: RuleT | Value): string => {
-  if (value !== null) {
+const buildNull = (nodeOrValue: Node | Value): string => {
+  if (nodeOrValue === null) {
+    return "null";
+  } else {
     throw new Error("Expected value to be null");
   }
-
-  return "null";
 };
 
-const buildSearchExpression = (rule: RuleT): Token => {
-  const { token, key, value, left, right } = rule;
+const buildSearchExpression = (node: Node): Token => {
+  const { token, key, value, left, right } = node;
 
   switch (token) {
     case "AND":
