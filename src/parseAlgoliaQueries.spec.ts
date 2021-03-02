@@ -199,4 +199,34 @@ describe("parseAlgoliaSQL", () => {
       });
     });
   });
+
+  describe("with different combinations", () => {
+    it("parses successfully", () => {
+      expect(
+        parseAlgoliaSQL(
+          " foo >   bar OR    (  foo   = baz AND   NOT   qux <=  2    ) OR hello:goodbye"
+        )
+      ).toEqual({
+        OR: [
+          { FIELD: "foo", VALUE: { GTE: "bar" } },
+          {
+            OR: [
+              {
+                AND: [
+                  { FIELD: "foo", VALUE: "baz" },
+                  {
+                    NOT: {
+                      EXCLUDE: { FIELD: "qux", VALUE: { LTE: "2" } },
+                      INCLUDE: { FIELD: "_all" },
+                    },
+                  },
+                ],
+              },
+              { FIELD: "hello", VALUE: "goodbye" },
+            ],
+          },
+        ],
+      });
+    });
+  });
 });

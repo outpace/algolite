@@ -2,7 +2,7 @@ start = Space* b:block Space* { return b; }
 
 block
   = Statement
-  / "(" statement:Statement ")" { return statement }
+  / "(" Space* statement:Statement Space* ")" { return statement }
 
 Statement
   = StatementAND
@@ -11,7 +11,7 @@ Statement
   / Expression
 
 StatementAND
-  = head:Expression Space "AND" Space tail:Statement {
+  = head:Expression Space+ "AND" Space+ tail:Statement {
     return {
       token: 'AND',
       left: head,
@@ -20,7 +20,7 @@ StatementAND
   }
 
 StatementOR
-  = head:Expression Space "OR" Space tail:Statement {
+  = head:Expression Space+ "OR" Space+ tail:Statement {
     return {
       token: 'OR',
       left: head,
@@ -29,7 +29,7 @@ StatementOR
   }
 
 StatementNOT
-  = "NOT" Space value:Statement {
+  = "NOT" Space+ value:Statement {
     return {
       token: 'NOT',
       value: value
@@ -97,7 +97,7 @@ Expression
   / ExpressionLte
   / ExpressionLt
   / ExpressionEquals
-  / "(" statement:Statement ")" { return statement }
+  / "(" Space* statement:Statement Space* ")" { return statement }
 
 Value "value"
   = Number
