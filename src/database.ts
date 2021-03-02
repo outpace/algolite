@@ -157,13 +157,9 @@ class Database {
     taskID: string;
     objectID: string;
   }> {
-    await this.index.DELETE([objectID]);
+    const result = await this.deleteObjects([objectID]);
 
-    return {
-      deletedAt: new Date().toISOString(),
-      taskID: "algolite-task-id",
-      objectID: objectID,
-    };
+    return { ...result, objectID };
   }
 
   async deleteObjects(
@@ -193,14 +189,15 @@ class Database {
       idsOnly: true,
     });
     const objectIDs = searchResults.hits.map((h) => h.objectID);
-    return this.deleteObjects(objectIDs);
+    const deleteResults = await this.deleteObjects(objectIDs);
+    return deleteResults;
   }
 
   async clear(): Promise<{
     updatedAt: string;
     taskID: string;
   }> {
-    // @ts-ignore the types are out of date on this one, there is a flush
+    // @ts-ignore the types are out of date on this one, there is a flush function
     await this.index.FLUSH();
 
     return {
