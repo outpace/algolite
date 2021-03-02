@@ -4,7 +4,9 @@ import path from "path";
 import si from "search-index";
 import { v4 } from "uuid";
 
-import { parseFilters, parseSearch } from "./parseAlgoliaQueries";
+import { parseSearch } from "./parseAlgoliaQueries";
+
+import leveldown from "leveldown";
 
 type SearchIndexPromise = ReturnType<typeof si>;
 type ThenArg<T> = T extends PromiseLike<infer U> ? U : T;
@@ -50,7 +52,8 @@ class Database {
     let database = this.databases[indexPath];
 
     if (!database) {
-      const index = await si({ db: indexPath });
+      // @ts-ignore this is simply wrong
+      const index = await si({ db: leveldown(indexPath) });
       database = new Database(indexName, storePath, indexPath, index);
       this.databases[indexPath] = database;
     }
