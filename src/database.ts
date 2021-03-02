@@ -42,7 +42,7 @@ class Database {
   }
 
   static async get(indexName: string, storePath: string): Promise<Database> {
-    const basePath = path.join(storePath, ".algolite");
+    const basePath = path.join(storePath);
     const indexPath = path.join(basePath, indexName);
 
     if (!fs.existsSync(basePath)) {
@@ -62,7 +62,7 @@ class Database {
   }
 
   static exists(indexName: string, storePath: string): boolean {
-    const indexPath = path.join(storePath, ".algolite", indexName);
+    const indexPath = path.join(storePath, indexName);
 
     return fs.existsSync(indexPath);
   }
