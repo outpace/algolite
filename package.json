@@ -12,7 +12,8 @@
     "generate:dsl-parser": "pegjs -o algoliaDSLParser.js algoliaDSL.pegjs",
     "prestart:container": "npm i && npm run generate:dsl-parser",
     "start:container": "node cli.js",
-    "test": "jest --watch"
+    "test": "jest --watch",
+    "lint": "eslint --ext '.js' --ext '.ts' ."
   },
   "dependencies": {
     "express": "^4.17.1",
@@ -30,14 +31,19 @@
     "@types/node": "^14.14.31",
     "@types/search-index": "^2.1.0",
     "@types/uuid": "^8.3.0",
-    "eslint": "^7.20.0",
+    "@typescript-eslint/eslint-plugin": "^4.16.1",
+    "@typescript-eslint/parser": "^4.16.1",
+    "eslint": "^7.21.0",
+    "eslint-config-prettier": "^8.1.0",
     "eslint-config-standard": "^16.0.2",
     "eslint-plugin-import": "^2.22.1",
     "eslint-plugin-node": "^11.1.0",
+    "eslint-plugin-prettier": "^3.3.1",
     "eslint-plugin-promise": "^4.3.1",
     "jest": "^26.6.3",
     "nodemon": "^2.0.7",
     "pegjs": "^0.10.0",
+    "prettier": "2.2.1",
     "ts-jest": "^26.5.2",
     "typescript": "^4.2.2"
   }

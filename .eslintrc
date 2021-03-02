@@ -1,12 +1,32 @@
 {
-  "extends": "standard",
-  "plugins": [
-    "import",
-    "node",
-    "promise"
+  "root": true,
+  "parser": "@typescript-eslint/parser",
+  "parserOptions": {
+    "project": "./tsconfig.eslint.json"
+  },
+  "plugins": ["@typescript-eslint", "import"],
+  "extends": [
+    // "eslint:recommended",
+    // "plugin:@typescript-eslint/recommended",
+    "plugin:prettier/recommended"
   ],
-  "env": {
-    "jest": true,
-    "node": true
+  "rules": {
+    "prettier/prettier": "off",
+    "curly": ["error", "all"],
+    "no-multiple-empty-lines": "warn",
+    "no-use-before-define": "off",
+    "@typescript-eslint/no-use-before-define": ["error"],
+    "import/no-duplicates": "error",
+    "import/no-default-export": "error",
+    "import/order": [
+      "warn",
+      {
+        "newlines-between": "always",
+        "alphabetize": {
+          "order": "asc",
+          "caseInsensitive": true
+        }
+      }
+    ]
   }
 }
