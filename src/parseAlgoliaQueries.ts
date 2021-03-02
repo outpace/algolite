@@ -1,4 +1,4 @@
-import { Token } from "./indexes";
+import { Token } from "./database";
 
 const parser = require("../algoliaDSLParser");
 
@@ -54,6 +54,7 @@ const leafNodeToString = (node: Node): string => {
 };
 
 const buildAndToken = (left: Node, right: Node): Token => {
+  /* eslint-disable-next-line @typescript-eslint/no-use-before-define */
   const expressions = [left, right].map(nodeToToken).filter(isNotUndefined);
 
   switch (expressions.length) {
@@ -67,6 +68,7 @@ const buildAndToken = (left: Node, right: Node): Token => {
 };
 
 const buildOrToken = (left: Node, right: Node): Token => {
+  /* eslint-disable-next-line @typescript-eslint/no-use-before-define */
   const expressions = [nodeToToken(left), nodeToToken(right)].filter(
     isNotUndefined
   );
@@ -86,6 +88,7 @@ const buildNotToken = (nodeOrLeaf: Node | Leaf): Token => {
     throw new Error("Expected a Node and not a Leaf");
   }
 
+  /* eslint-disable-next-line @typescript-eslint/no-use-before-define */
   const token = nodeToToken(nodeOrLeaf);
 
   if (token === undefined) {
@@ -260,21 +263,28 @@ const parseAlgoliaSQL = (sql: string | string[]): Token => {
 };
 
 const parseFilters = (
-  filters: string | string[] | undefined
+  rawFilters: string | string[] | undefined
 ): Token | undefined => {
-  if (filters === undefined) {
+  if (rawFilters === undefined) {
     return undefined;
   }
 
-  if (Array.isArray(filters)) {
-    filters = filters
-      .map((f) => f.trim())
-      .filter((f) => f !== "")
-      .map((f) => `(${f})`)
-      .join(" OR ");
-  }
+  if (Array.isArray(rawFilters)) {
+    let filters = [...rawFilters];
+    filters = filters.map((f) => f.trim());
+    filters = filters.filter((f) => f !== "");
 
-  return parseAlgoliaSQL(filters);
+    switch (filters.length) {
+      case 0:
+        return undefined;
+      case 1:
+        return parseAlgoliaSQL(filters[0]);
+      default:
+        return filters.map((f) => `(${f})`).join(" OR ");
+    }
+  } else {
+    return parseAlgoliaSQL(rawFilters);
+  }
 };
 
 const parseQuery = (query: string | string[] | undefined): Token => {
@@ -298,7 +308,7 @@ const parseSearch = (search: {
 }): Token => {
   const { query, filters } = search;
 
-  let searches: NonNullable<Token>[] = [];
+  const searches: NonNullable<Token>[] = [];
 
   const parsedQuery = parseQuery(query);
 
