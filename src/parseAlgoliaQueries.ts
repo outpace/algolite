@@ -77,20 +77,19 @@ const buildNot = (value: any): Token => {
   return { NOT: { EXCLUDE: expression, INCLUDE: { FIELD: "_all" } } };
 };
 
-const buildMatch = (key: string, value: RuleT | Value): Token => {
-  if (!isValue(value)) {
-    throw new Error("Expected right side of match to be a simple value");
+const buildMatch = (key: string, value: RuleT): Token => {
+  const expression = buildSearchExpression(value);
+
+  if (!isValue(expression)) {
+    throw new Error(
+      `Expected right side of match to be a simple value, got: ${typeof expression}`
+    );
   }
 
-  if (value === null) {
-    return undefined;
-  } else if (typeof value !== "string") {
-    value = value.toString();
-  }
-  return { FIELD: key, VALUE: value };
+  return { FIELD: key, VALUE: expression };
 };
 
-const buildEquals = (key: string, value: RuleT | Value): Token => {
+const buildEquals = (key: string, value: RuleT): Token => {
   return buildMatch(key, value);
 };
 
@@ -261,7 +260,11 @@ const parseFilters = (
   }
 
   if (Array.isArray(filters)) {
-    filters = filters.map((f) => `(${f})`).join(" OR ");
+    filters = filters
+      .map((f) => f.trim())
+      .filter((f) => f !== "")
+      .map((f) => `(${f})`)
+      .join(" OR ");
   }
 
   return parseAlgoliaSQL(filters);
@@ -273,7 +276,10 @@ const parseQuery = (query: string | string[] | undefined): Token => {
   }
 
   if (Array.isArray(query)) {
-    query = query.join(" ");
+    query = query
+      .map((q) => q.trim())
+      .filter((q) => q !== "")
+      .join(" ");
   }
 
   return query ? query : { FIELD: "_all" };
