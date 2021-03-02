@@ -10,8 +10,6 @@ type SearchIndexPromise = ReturnType<typeof si>;
 type ThenArg<T> = T extends PromiseLike<infer U> ? U : T;
 type SearchIndex = ThenArg<SearchIndexPromise>;
 export type Token = Parameters<ThenArg<SearchIndexPromise>["MIN"]>[0];
-type Foo = ThenArg<ReturnType<SearchIndex["QUERY"]>>["RESULT"];
-// QueryResultItemNoDoc;
 
 type Hit = {
   [attribute: string]: any;
