@@ -2,12 +2,12 @@ import { Token } from "./indexes";
 
 const parser = require("../algoliaDSLParser");
 
-type Value = string | number | boolean | null;
+type Leaf = string | number | boolean | null;
 
 interface Node {
   token: any;
   key: any;
-  value: Node | Value;
+  value: Node | Leaf;
   left: Node;
   right: Node;
 }
@@ -20,7 +20,7 @@ const isNotUndefined = <T>(value: T | undefined): value is T => {
   return true;
 };
 
-const isValue = (value: unknown): value is Value => {
+const isLeaf = (value: unknown): value is Leaf => {
   const type = typeof value;
 
   if (
@@ -35,7 +35,7 @@ const isValue = (value: unknown): value is Value => {
   return false;
 };
 
-const valueNodeToString = (node: Node): string => {
+const leafNodeToString = (node: Node): string => {
   const value = node.value;
 
   switch (typeof value) {
@@ -53,10 +53,8 @@ const valueNodeToString = (node: Node): string => {
   }
 };
 
-const buildAnd = (left: Node, right: Node): Token => {
-  const expressions = [left, right]
-    .map(buildSearchExpression)
-    .filter(isNotUndefined);
+const buildAndToken = (left: Node, right: Node): Token => {
+  const expressions = [left, right].map(nodeToToken).filter(isNotUndefined);
 
   switch (expressions.length) {
     case 0:
@@ -68,11 +66,10 @@ const buildAnd = (left: Node, right: Node): Token => {
   }
 };
 
-const buildOr = (left: Node, right: Node): Token => {
-  const expressions = [
-    buildSearchExpression(left),
-    buildSearchExpression(right),
-  ].filter(isNotUndefined);
+const buildOrToken = (left: Node, right: Node): Token => {
+  const expressions = [nodeToToken(left), nodeToToken(right)].filter(
+    isNotUndefined
+  );
 
   switch (expressions.length) {
     case 0:
@@ -84,159 +81,165 @@ const buildOr = (left: Node, right: Node): Token => {
   }
 };
 
-const buildNot = (value: any): Token => {
-  const expression = buildSearchExpression(value);
+const buildNotToken = (nodeOrLeaf: Node | Leaf): Token => {
+  if (isLeaf(nodeOrLeaf)) {
+    throw new Error("Expected a Node and not a Leaf");
+  }
 
-  if (expression === undefined) {
+  const token = nodeToToken(nodeOrLeaf);
+
+  if (token === undefined) {
     return undefined;
   }
 
   // @ts-ignore you have to have a NOT around the EXCLUDE/INCLUDE but the types don't think so
-  return { NOT: { EXCLUDE: expression, INCLUDE: { FIELD: "_all" } } };
+  return { NOT: { EXCLUDE: token, INCLUDE: { FIELD: "_all" } } };
 };
 
-const buildMatch = (key: string, value: Node | Value): Token => {
-  if (isValue(value)) {
-    throw new Error("Expected a Node and not a Value");
+const buildMatchToken = (key: string, nodeOrLeaf: Node | Leaf): Token => {
+  if (isLeaf(nodeOrLeaf)) {
+    throw new Error("Expected a Node and not a Leaf");
   }
 
-  const valueAsString = valueNodeToString(value);
+  const leaf = leafNodeToString(nodeOrLeaf);
 
-  return { FIELD: key, VALUE: valueAsString };
+  return { FIELD: key, VALUE: leaf };
 };
 
-const buildEquals = (key: string, value: Node | Value): Token => {
-  return buildMatch(key, value);
+const buildEqualsToken = (key: string, nodeOrLeaf: Node | Leaf): Token => {
+  return buildMatchToken(key, nodeOrLeaf);
 };
 
-const buildGt = (key: string, nodeOrValue: Node | Value): Token => {
-  if (isValue(nodeOrValue)) {
-    throw new Error("Expected a Node and not a Value");
+const buildGtToken = (key: string, nodeOrLeaf: Node | Leaf): Token => {
+  if (isLeaf(nodeOrLeaf)) {
+    throw new Error("Expected a Node and not a Leaf");
   }
 
   // GTE will be wrong when the value is a string but string comparisons in this way
   // are weird in the first place and there's no good way in js to get the next lexicographical
   // string.
 
-  if (nodeOrValue.token === "NUMBER" && typeof nodeOrValue.value === "number") {
+  if (nodeOrLeaf.token === "NUMBER" && typeof nodeOrLeaf.value === "number") {
     // all we have is GTE and these are whole numbers so we have to increment for this to work
 
-    const value = (nodeOrValue.value + 1).toString();
+    const leaf = (nodeOrLeaf.value + 1).toString();
 
     // @ts-ignore LTE is not actually required and value is definitely a number
-    return { FIELD: key, VALUE: { GTE: value } };
+    return { FIELD: key, VALUE: { GTE: leaf } };
   }
 
-  const valueAsString = valueNodeToString(nodeOrValue);
+  const leaf = leafNodeToString(nodeOrLeaf);
 
   // @ts-ignore LTE is not actually required
-  return { FIELD: key, VALUE: { GTE: valueAsString } };
+  return { FIELD: key, VALUE: { GTE: leaf } };
 };
 
-const buildGte = (key: string, nodeOrValue: Node | Value): Token => {
-  if (isValue(nodeOrValue)) {
-    throw new Error("Expected a Node and not a Value");
+const buildGteToken = (key: string, nodeOrLeaf: Node | Leaf): Token => {
+  if (isLeaf(nodeOrLeaf)) {
+    throw new Error("Expected a Node and not a Leaf");
   }
 
   // GTE will be wrong when the value is a string but string comparisons in this way
   // are weird in the first place and there's no good way in js to get the previous lexicographical
   // string.
 
-  const valueAsString = valueNodeToString(nodeOrValue);
+  const leaf = leafNodeToString(nodeOrLeaf);
 
   // @ts-ignore LTE is not actually required
-  return { FIELD: key, VALUE: { GTE: valueAsString } };
+  return { FIELD: key, VALUE: { GTE: leaf } };
 };
 
-const buildLt = (key: string, nodeOrValue: Node | Value): Token => {
-  if (isValue(nodeOrValue)) {
-    throw new Error("Expected a Node and not a Value");
+const buildLtToken = (key: string, nodeOrLeaf: Node | Leaf): Token => {
+  if (isLeaf(nodeOrLeaf)) {
+    throw new Error("Expected a Node and not a Leaf");
   }
 
   // LTE will be wrong when the value is a string but string comparisons in this way
   // are weird in the first place and there's no good way in js to get the previous lexicographical
   // string.
 
-  if (nodeOrValue.token === "NUMBER" && typeof nodeOrValue.value === "number") {
+  if (nodeOrLeaf.token === "NUMBER" && typeof nodeOrLeaf.value === "number") {
     // all we have is LTE and these are whole numbers so we have to decrement for this to work
 
-    const value = (nodeOrValue.value - 1).toString();
+    const leaf = (nodeOrLeaf.value - 1).toString();
 
     // @ts-ignore GTE is not actually required
-    return { FIELD: key, VALUE: { LTE: value } };
+    return { FIELD: key, VALUE: { LTE: leaf } };
   }
 
-  const value = valueNodeToString(nodeOrValue);
+  const leaf = leafNodeToString(nodeOrLeaf);
 
   // @ts-ignore GTE is not actually required
-  return { FIELD: key, VALUE: { LTE: value } };
+  return { FIELD: key, VALUE: { LTE: leaf } };
 };
 
-const buildLte = (key: string, nodeOrValue: Node | Value): Token => {
-  if (isValue(nodeOrValue)) {
-    throw new Error("Expected a Node and not a Value");
+const buildLteToken = (key: string, nodeOrLeaf: Node | Leaf): Token => {
+  if (isLeaf(nodeOrLeaf)) {
+    throw new Error("Expected a Node and not a Leaf");
   }
 
-  const value = valueNodeToString(nodeOrValue);
+  const leaf = leafNodeToString(nodeOrLeaf);
 
   // @ts-ignore GTE is not actually required
-  return { FIELD: key, VALUE: { LTE: value } };
+  return { FIELD: key, VALUE: { LTE: leaf } };
 };
 
-const buildString = (nodeOrValue: Node | Value): string => {
-  if (typeof nodeOrValue === "string") {
-    return nodeOrValue;
+const buildString = (nodeOrLeaf: Node | Leaf): string => {
+  if (typeof nodeOrLeaf === "string") {
+    return nodeOrLeaf;
   } else {
-    throw new Error("Expected value to be a string");
+    throw new Error("Expected value to be a string, got: " + typeof nodeOrLeaf);
   }
 };
 
-const buildNumber = (nodeOrValue: Node | Value): string => {
-  if (typeof nodeOrValue === "number") {
-    return nodeOrValue.toString();
+const buildNumber = (nodeOrLeaf: Node | Leaf): string => {
+  if (typeof nodeOrLeaf === "number") {
+    return nodeOrLeaf.toString();
   } else {
-    throw new Error("Expected value to be a number");
+    throw new Error("Expected value to be a number, got: " + typeof nodeOrLeaf);
   }
 };
 
-const buildBoolean = (nodeOrValue: Node | Value): string => {
-  if (typeof nodeOrValue === "boolean") {
-    return nodeOrValue.toString();
+const buildBoolean = (nodeOrLeaf: Node | Leaf): string => {
+  if (typeof nodeOrLeaf === "boolean") {
+    return nodeOrLeaf.toString();
   } else {
-    throw new Error("Expected value to be a boolean");
+    throw new Error(
+      "Expected value to be a boolean, got: " + typeof nodeOrLeaf
+    );
   }
 };
 
-const buildNull = (nodeOrValue: Node | Value): string => {
-  if (nodeOrValue === null) {
+const buildNull = (nodeOrLeaf: Node | Leaf): string => {
+  if (nodeOrLeaf === null) {
     return "null";
   } else {
-    throw new Error("Expected value to be null");
+    throw new Error("Expected value to be null, got: " + typeof nodeOrLeaf);
   }
 };
 
-const buildSearchExpression = (node: Node): Token => {
+const nodeToToken = (node: Node): Token => {
   const { token, key, value, left, right } = node;
 
   switch (token) {
     case "AND":
-      return buildAnd(left, right);
+      return buildAndToken(left, right);
     case "OR":
-      return buildOr(left, right);
+      return buildOrToken(left, right);
     case "NOT":
-      return buildNot(value);
+      return buildNotToken(value);
     case "MATCH":
-      return buildMatch(key, value);
+      return buildMatchToken(key, value);
     case "EQUALS":
-      return buildEquals(key, value);
+      return buildEqualsToken(key, value);
     case "GT":
-      return buildGt(key, value);
+      return buildGtToken(key, value);
     case "GTE":
-      return buildGte(key, value);
+      return buildGteToken(key, value);
     case "LT":
-      return buildLt(key, value);
+      return buildLtToken(key, value);
     case "LTE":
-      return buildLte(key, value);
+      return buildLteToken(key, value);
     case "STRING":
       return buildString(value);
     case "NUMBER":
@@ -253,7 +256,7 @@ const buildSearchExpression = (node: Node): Token => {
 const parseAlgoliaSQL = (sql: string | string[]): Token => {
   const ast = parser.parse(sql);
 
-  return buildSearchExpression(ast);
+  return nodeToToken(ast);
 };
 
 const parseFilters = (
