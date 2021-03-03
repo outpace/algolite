@@ -6,7 +6,7 @@ import { v4 } from "uuid";
 
 import { parseSearch } from "./parseAlgoliaQueries";
 
-import leveldown from "leveldown";
+import leveldown, { LevelDown } from "leveldown";
 
 type SearchIndexPromise = ReturnType<typeof si>;
 type ThenArg<T> = T extends PromiseLike<infer U> ? U : T;
@@ -28,21 +28,30 @@ class Database {
   storePath: string;
   indexPath: string;
   index: SearchIndex;
+  store: LevelDown;
 
   private constructor(
     indexName: string,
     storePath: string,
     indexPath: string,
-    index: SearchIndex
+    index: SearchIndex,
+    store: LevelDown
   ) {
     this.indexName = indexName;
     this.storePath = storePath;
     this.indexPath = indexPath;
     this.index = index;
+    this.store = store;
+  }
+
+  static async purgeAll(): Promise<void> {
+    for (const [indexPath, database] of Object.entries(this.databases)) {
+      await database.purge();
+    }
   }
 
   static async get(indexName: string, storePath: string): Promise<Database> {
-    const basePath = path.join(storePath);
+    const basePath = path.resolve(path.join(storePath));
     const indexPath = path.join(basePath, indexName);
 
     if (!fs.existsSync(basePath)) {
@@ -52,9 +61,10 @@ class Database {
     let database = this.databases[indexPath];
 
     if (!database) {
+      const store = leveldown(indexPath);
       // @ts-ignore this is simply wrong
-      const index = await si({ db: leveldown(indexPath) });
-      database = new Database(indexName, storePath, indexPath, index);
+      const index = await si({ db: store });
+      database = new Database(indexName, storePath, indexPath, index, store);
       this.databases[indexPath] = database;
     }
 
@@ -205,6 +215,47 @@ class Database {
       updatedAt: new Date().toISOString(),
       taskID: "algolite-task-id",
     };
+  }
+
+  async close(): Promise<void> {
+    await new Promise((resolve) => this.store.close(resolve));
+    delete Database.databases[this.indexPath];
+  }
+
+  async purge(): Promise<void> {
+    await this.close();
+    this.removeFiles();
+  }
+
+  private removeFiles() {
+    let files: fs.Dirent[];
+    files = fs.readdirSync(this.indexPath, { withFileTypes: true });
+    files = files.filter((f) => f.isFile());
+
+    for (const file of files) {
+      const filePath = path.join(this.indexPath, file.name);
+
+      if (
+        file.name.match(/^[0-9]{6}.(ldb|log)$/) ||
+        file.name.match(/^CURRENT$/) ||
+        file.name.match(/^LOCK$/) ||
+        file.name.match(/^LOG(\.old)?$/) ||
+        file.name.match(/^MANIFEST-[0-9]{6}$/)
+      ) {
+        fs.unlinkSync(filePath);
+      }
+    }
+
+    const remainingFiles = fs.readdirSync(this.indexPath);
+
+    if (remainingFiles.length > 0) {
+      console.warn("Could not remove all database files!", {
+        remainingFiles,
+        indexPath: this.indexPath,
+      });
+    } else {
+      fs.rmdirSync(this.indexPath);
+    }
   }
 }
 
