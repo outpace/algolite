@@ -100,15 +100,20 @@ Expression
   / "(" Space* statement:Statement Space* ")" { return statement }
 
 Value "value"
-  = Number
-  / Boolean
+  = Boolean
   / Null
   / String
+  / Number
 
 String "string"
   = '"' word:Special '"' { return { token: 'STRING', value: word  } }
   / "'" word:Special "'" { return { token: 'STRING', value: word  } }
-  / word:Special { return { token: 'STRING', value: word  } }
+  / word:Special {
+      if (word.match(/^[0-9]+$/)) {
+        return { token: 'NUMBER', value: parseInt(word) }
+      }
+      return { token: 'STRING', value: word  }
+    }
 
 Number "number"
   = value:[0-9]+ {
