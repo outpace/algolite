@@ -6,7 +6,7 @@ import { v4 } from "uuid";
 
 import { parseSearch } from "./parseAlgoliaQueries";
 
-import leveldown, { LevelDown } from "leveldown";
+import leveldown from "leveldown";
 
 type SearchIndexPromise = ReturnType<typeof si>;
 type ThenArg<T> = T extends PromiseLike<infer U> ? U : T;
@@ -19,7 +19,7 @@ type Hit = {
   objectID: string;
 };
 
-type SaveableObject = { [attribyte: string]: any };
+type SaveableObject = { [attribyte: string]: any } & { objectID?: string };
 
 class Database {
   static databases: { [indexPath: string]: Database } = {};
@@ -28,14 +28,14 @@ class Database {
   storePath: string;
   indexPath: string;
   index: SearchIndex;
-  store: LevelDown;
+  store: ReturnType<typeof leveldown>;
 
   private constructor(
     indexName: string,
     storePath: string,
     indexPath: string,
     index: SearchIndex,
-    store: LevelDown
+    store: ReturnType<typeof leveldown>
   ) {
     this.indexName = indexName;
     this.storePath = storePath;
@@ -51,7 +51,7 @@ class Database {
   }
 
   static async get(indexName: string, storePath: string): Promise<Database> {
-    const basePath = path.resolve(path.join(storePath));
+    const basePath = path.resolve(storePath);
     const indexPath = path.join(basePath, indexName);
 
     if (!fs.existsSync(basePath)) {
@@ -62,8 +62,11 @@ class Database {
 
     if (!database) {
       const store = leveldown(indexPath);
-      // @ts-ignore this is simply wrong
-      const index = await si({ db: store });
+      const index = await si({
+        // @ts-ignore this is simply wrong
+        db: store,
+        caseSensitive: true,
+      });
       database = new Database(indexName, storePath, indexPath, index, store);
       this.databases[indexPath] = database;
     }
@@ -80,31 +83,28 @@ class Database {
   async searchObjects(criteria: {
     query?: string | string[] | undefined;
     filters?: string | string[] | undefined;
-    idsOnly?: boolean;
   }): Promise<{
     hits: Hit[];
     query: string | string[] | undefined;
     parsed_query: Token;
     params: string | string[] | undefined;
   }> {
-    const { query, filters, idsOnly } = criteria;
+    const { query, filters } = criteria;
 
     const search = parseSearch({ query, filters });
 
     const { RESULT: result } = await this.index.QUERY(search, {
-      DOCUMENTS: !idsOnly,
+      DOCUMENTS: true,
     });
 
-    // this is going to be return an array of AlgoliaHitType
     const hits: Hit[] = [];
-    for (const obj of result) {
-      let hit: Hit;
 
-      if ("_doc" in obj) {
-        hit = { ...obj._doc[0], objectID: obj._id };
-      } else {
-        hit = { objectID: obj._id };
-      }
+    for (const obj of result) {
+      let hit: Hit = {
+        // @ts-ignore we pass DOCUMENTS: true so this key will be here
+        ...obj._doc,
+        _id: obj._id,
+      };
 
       hits.push(hit);
     }
@@ -124,12 +124,15 @@ class Database {
     taskID: string;
     objectID: string;
   }> {
-    const objectID = rawObject["objectID"] || v4();
+    let objectID: string;
+    objectID = rawObject["objectID"] || v4();
+    objectID = objectID.toString();
+    objectID = objectID.replace(/-/g, "");
+
     const object: SaveableObject = {
       ...rawObject,
+      objectID,
       _all: "all",
-      objectID: objectID,
-      _id: objectID,
     };
 
     await this.index.PUT([object], {
@@ -141,7 +144,7 @@ class Database {
     return {
       createdAt: new Date().toISOString(),
       taskID: "algolite-task-id",
-      objectID: objectID,
+      objectID,
     };
   }
 
@@ -197,7 +200,6 @@ class Database {
   }> {
     const searchResults = await this.searchObjects({
       filters: rawFilters,
-      idsOnly: true,
     });
     const objectIDs = searchResults.hits.map((h) => h.objectID);
     const deleteResults = await this.deleteObjects(objectIDs);

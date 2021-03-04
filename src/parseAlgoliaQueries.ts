@@ -283,7 +283,8 @@ const parseFilters = (
         return filters.map((f) => `(${f})`).join(" OR ");
     }
   } else {
-    return parseAlgoliaSQL(rawFilters);
+    const filters = parseAlgoliaSQL(rawFilters);
+    return filters;
   }
 };
 
